@@ -1,26 +1,24 @@
 const express = require('express');
-const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 
+const app = express();
 const port = process.env.PORT || 8000;
 
-app.use(
-    cors({
-        origin: [
-            "http://localhost:5173",
-            "http://localhost:5174",
-        ],
-        credentials: true
-    })
-);
-
+// Middleware
+app.use(cors({
+    origin: [
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ],
+    credentials: true
+}));
 app.use(express.json());
 
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const uri = "mongodb+srv://tonmoyahamed2009:tonmoytoma22@cluster0.wgmtb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
+// MongoDB Connection
+const uri = "mongodb+srv://tonmoyahamed2009:tonmoytoma22@cluster0.k4r7r.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -31,36 +29,31 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-
         console.log("Connected to MongoDB");
 
-        const usersCollection = client.db('classmaster').collection('users');
-        const bannerCollection = client.db('classmaster').collection('banner');
-        const testimonialsCollection = client.db('classmaster').collection('testimonials');
+        const db = client.db('ShopSmart');
+        const usersCollection = db.collection('users');
+        const bannerCollection = db.collection('banner');
+        const testimonialsCollection = db.collection('testimonials');
 
-
-        // JWT Related Server
-
+        // JWT Route
         app.post('/jwt', async (req, res) => {
-            const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-
+            const { email } = req.body;
+            const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             res.send({ token });
         });
 
-        // Banner Realated Server
+        // Banner Routes
         app.get('/banner', async (req, res) => {
-            const banner = await bannerCollection.find().toArray();
-            res.send(banner);
+            const banners = await bannerCollection.find().toArray();
+            res.send(banners);
         });
 
-
-        // testimonials Related Server
+        // Testimonials Routes
         app.get('/testimonials', async (req, res) => {
-            const test = await testimonialsCollection.find().toArray();
-            res.send(test);
+            const testimonials = await testimonialsCollection.find().toArray();
+            res.send(testimonials);
         });
-
 
         app.post('/testimonial', async (req, res) => {
             const newComment = req.body;
@@ -68,36 +61,27 @@ async function run() {
                 const result = await testimonialsCollection.insertOne(newComment);
                 res.status(201).send(result);
             } catch (error) {
-                console.error('Error registering user:', error.message);
-                res.status(500).send({ message: 'Failed to Add Comment' });
+                console.error('Error adding comment:', error.message);
+                res.status(500).send({ message: 'Failed to add comment' });
             }
         });
 
-
-
-
-
-
-        //Users Related Endpoint's
+        // Users Routes
         app.get('/users', async (req, res) => {
             const users = await usersCollection.find().toArray();
             res.send(users);
         });
 
-
         app.get('/users/:email', async (req, res) => {
             const email = req.params.email;
-            const result = await usersCollection.findOne({ email });
-            res.send(result);
+            const user = await usersCollection.findOne({ email });
+            res.send(user);
         });
-
 
         app.delete('/users/:email', async (req, res) => {
             const email = req.params.email;
-
             try {
                 const result = await usersCollection.deleteOne({ email });
-
                 if (result.deletedCount > 0) {
                     res.send({ message: 'User deleted successfully' });
                 } else {
@@ -108,33 +92,21 @@ async function run() {
             }
         });
 
-
-
-
         app.put('/user', async (req, res) => {
             const user = req.body;
-            const query = { email: user?.email, name: user.displayName };
-            const isExist = await usersCollection.findOne(query);
-            if (isExist) {
-                if (user.status === 'Requested') {
-                    const result = await usersCollection.updateOne(query, {
-                        $set: { status: user?.status },
-                    });
-                    return res.send(result);
-                } else {
-                    return res.send(isExist);
-                }
-            }
-
-            const options = { upsert: true };
+            const query = { email: user.email };
             const updateDoc = {
-                $set: {
-                    ...user,
-                    timestamp: Date.now(),
-                },
+                $set: user,
+                $setOnInsert: { timestamp: Date.now() }
             };
-            const result = await usersCollection.updateOne(query, updateDoc, options);
-            res.send(result);
+            const options = { upsert: true };
+            try {
+                const result = await usersCollection.updateOne(query, updateDoc, options);
+                res.send(result);
+            } catch (error) {
+                console.error('Error updating user:', error.message);
+                res.status(500).send({ message: 'Failed to update user' });
+            }
         });
 
         app.post('/user', async (req, res) => {
@@ -144,23 +116,24 @@ async function run() {
                 res.status(201).send(result);
             } catch (error) {
                 console.error('Error registering user:', error.message);
-                res.status(500).send({ message: 'Failed to register user. Please try again.' });
+                res.status(500).send({ message: 'Failed to register user' });
             }
         });
 
-
-
-
-        app.get('/logout', async (req, res) => {
+        app.get('/logout', (req, res) => {
             try {
                 res.clearCookie('token', {
                     maxAge: 0,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
                 }).send({ success: true });
-            } catch (err) {
-                res.status(500).send(err);
+            } catch (error) {
+                res.status(500).send({ message: 'Failed to log out' });
             }
+        });
+
+        app.get('/', (req, res) => {
+            res.send('Server is running');
         });
 
         app.listen(port, () => {
@@ -169,15 +142,10 @@ async function run() {
 
     } finally {
         process.on('SIGINT', async () => {
-
-
+            // await client.close();
+            // process.exit(0);
         });
     }
 }
 
-
-run().catch(console.dir);
-
-app.get('/', (req, res) => {
-    res.send('classmaster is sitting');
-});
+run().catch(console.error);
