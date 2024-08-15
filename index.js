@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
@@ -29,12 +29,14 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
+        // await client.connect();
         console.log("Connected to MongoDB");
 
         const db = client.db('ShopSmart');
         const usersCollection = db.collection('users');
         const bannerCollection = db.collection('banner');
         const testimonialsCollection = db.collection('testimonials');
+        const productsCollection = db.collection('products');
 
         // JWT Route
         app.post('/jwt', async (req, res) => {
@@ -49,6 +51,35 @@ async function run() {
             res.send(banners);
         });
 
+        // Products Route with Pagination
+        app.get('/products', async (req, res) => {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
+
+            try {
+                const totalProducts = await productsCollection.countDocuments();
+                const products = await productsCollection.find().skip(skip).limit(limit).toArray();
+
+                res.send({
+                    products,
+                    currentPage: page,
+                    totalPages: Math.ceil(totalProducts / limit),
+                    totalProducts
+                });
+            } catch (error) {
+                res.status(500).send({ message: 'Failed to fetch products' });
+            }
+        });
+        app.get('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await productsCollection.findOne(query);
+            res.send(result);
+        })
+
+
+
         // Testimonials Routes
         app.get('/testimonials', async (req, res) => {
             const testimonials = await testimonialsCollection.find().toArray();
@@ -61,7 +92,6 @@ async function run() {
                 const result = await testimonialsCollection.insertOne(newComment);
                 res.status(201).send(result);
             } catch (error) {
-                console.error('Error adding comment:', error.message);
                 res.status(500).send({ message: 'Failed to add comment' });
             }
         });
@@ -104,7 +134,6 @@ async function run() {
                 const result = await usersCollection.updateOne(query, updateDoc, options);
                 res.send(result);
             } catch (error) {
-                console.error('Error updating user:', error.message);
                 res.status(500).send({ message: 'Failed to update user' });
             }
         });
@@ -115,7 +144,6 @@ async function run() {
                 const result = await usersCollection.insertOne(newUser);
                 res.status(201).send(result);
             } catch (error) {
-                console.error('Error registering user:', error.message);
                 res.status(500).send({ message: 'Failed to register user' });
             }
         });
