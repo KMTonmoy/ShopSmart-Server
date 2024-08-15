@@ -37,6 +37,7 @@ async function run() {
         const bannerCollection = db.collection('banner');
         const testimonialsCollection = db.collection('testimonials');
         const productsCollection = db.collection('products');
+        const cartCollection = db.collection('cart');
 
         // JWT Route
         app.post('/jwt', async (req, res) => {
@@ -50,6 +51,44 @@ async function run() {
             const banners = await bannerCollection.find().toArray();
             res.send(banners);
         });
+
+
+        // Cart Related Api 
+        app.get('/carts', async (req, res) => {
+            const cart = await cartCollection.find().toArray();
+            res.send(cart);
+        });
+
+        app.post('/cart', async (req, res) => {
+            const newitem = req.body;
+            const result = await cartCollection.insertOne(newitem);
+            res.status(201).send(result);
+
+        });
+
+        app.delete('/carts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await cartCollection.deleteOne(query);
+            res.send(result);
+        })
+        app.delete('/cartss/:email', async (req, res) => {
+            const email = req.params.email;
+            try {
+                const query = { userEmail: email };
+                const result = await cartCollection.deleteMany(query);
+                if (result.deletedCount > 0) {
+                    res.send({ message: 'Cart items deleted successfully' });
+                } else {
+                    res.status(404).send({ message: 'No items found for this email' });
+                }
+            } catch (error) {
+                res.status(500).send({ message: 'Failed to delete items from cart' });
+            }
+        });
+
+
+
 
         // Products Route with Pagination
         app.get('/products', async (req, res) => {
