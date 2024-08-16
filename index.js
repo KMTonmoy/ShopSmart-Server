@@ -18,7 +18,7 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB Connection
-const uri = "mongodb+srv://tonmoyahamed2009:tonmoytoma22@cluster0.k4r7r.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uri = `${process.env.MongoURI}`;
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -88,7 +88,7 @@ async function run() {
         });
 
 
- 
+
 
         // Products Route with Pagination
         app.get('/products', async (req, res) => {
