@@ -135,7 +135,7 @@ async function run() {
             } catch (error) {
                 res.status(500).send({ message: 'Failed to add comment' });
             }
-        });
+        }); 
  
         // Users Routes
         app.get('/users', async (req, res) => {
