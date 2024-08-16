@@ -12,6 +12,7 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "http://localhost:5174",
+        "https://api.imgbb.com/1/upload?key=19c9072b07556f7849d6dea75b7e834d",
     ],
     credentials: true
 }));
