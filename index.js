@@ -12,6 +12,7 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "http://localhost:5174",
+        "https://shopsmart156.netlify.app",
         "https://api.imgbb.com/1/upload?key=19c9072b07556f7849d6dea75b7e834d",
     ],
     credentials: true
@@ -135,7 +136,7 @@ async function run() {
                 res.status(500).send({ message: 'Failed to add comment' });
             }
         });
-
+ 
         // Users Routes
         app.get('/users', async (req, res) => {
             const users = await usersCollection.find().toArray();
